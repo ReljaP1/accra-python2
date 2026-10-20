@@ -1,0 +1,29 @@
+[project]
+name = "accra-python2"
+version = "0.1.0"
+description = "Python 2 plugin for ACCRa."
+readme = "README.txt"
+requires-python = ">=3.12"
+dependencies = [
+    "accra-language",
+    "pytest>=9.1.1",
+    "vermin>=1.6.0",
+]
+
+[project.scripts]
+accra-python2 = "accra_python2:main"
+
+[build-system]
+requires = ["uv_build>=0.12.17,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+accra-language = { git = "https://github.com/rumenmitov/accra-language" }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.9",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
