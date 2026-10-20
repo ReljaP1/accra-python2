@@ -6,7 +6,7 @@ import pytest
 from accra_language import AccraResult, Config
 
 from accra_python2 import Pip, Python2
-from accra_python2.constants import PYTHON27_IMAGE, VIRTUALENV_SPEC
+from accra_python2.constants import PYTHON2_VIRTUALENV_SPEC, PYTHON27_IMAGE
 
 _BOOTSTRAP = (
     "RUN .venv/bin/pip install 'pip<21' 'setuptools<45' 'wheel<0.35' "
@@ -40,12 +40,12 @@ def test_adhoc_package_resolution(monkeypatch):
         assert result.success
         assert result.dockerfile.pre_dependencies_installation == [
             f"FROM {PYTHON27_IMAGE}",
-            f"RUN python -m pip install {VIRTUALENV_SPEC}",
+            f"RUN python -m pip install {PYTHON2_VIRTUALENV_SPEC}",
             "RUN python -m virtualenv .venv",
             _BOOTSTRAP,
         ]
         assert result.dockerfile.dependencies_installation == [
-            "RUN .venv/bin/pip install six --ignore-requires-python"
+            "RUN .venv/bin/pip install six"
         ]
         assert result.dockerfile.post_dependencies_installation == []
     finally:

@@ -56,7 +56,6 @@ def _dockerfile_text(result) -> str:
 
 
 def test_requirements_installs_six_and_skips_stdlib(tmp_path: Path):
-    (tmp_path / "app.py").write_text('print("ok")\n', encoding="utf-8")
     (tmp_path / "requirements.txt").write_text(
         "six==1.16.0\nurllib2\n",
         encoding="utf-8",
@@ -77,15 +76,11 @@ def test_requirements_installs_six_and_skips_stdlib(tmp_path: Path):
 
 
 def test_setup_py_installs_six(tmp_path: Path):
+    (tmp_path / "install-requires.txt").write_text("six==1.16.0\n", encoding="utf-8")
     (tmp_path / "setup.py").write_text(
         "from setuptools import setup\n"
-        "setup(\n"
-        "    name='sample',\n"
-        "    python_requires='>=2.7',\n"
-        "    install_requires=[\n"
-        "        'six==1.16.0',\n"
-        "    ],\n"
-        ")\n",
+        "setup(name='sample', python_requires='>=2.7', "
+        "install_requires=open('install-requires.txt').read().splitlines())\n",
         encoding="utf-8",
     )
 

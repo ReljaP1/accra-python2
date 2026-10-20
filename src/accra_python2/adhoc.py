@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Mapping
@@ -21,6 +22,7 @@ _ADHOC_PACKAGES: Mapping[str, str] = {
     "PIL": "Pillow",
     "cv2": "opencv-python",
     "sklearn": "scikit-learn",
+    "MySQLdb": "mysqlclient",
     "bs4": "beautifulsoup4",
     "dotenv": "python-dotenv",
     "dateutil": "python-dateutil",
@@ -29,9 +31,12 @@ _ADHOC_PACKAGES: Mapping[str, str] = {
     "markdown_it": "markdown-it-py",
 }
 
+_MODULE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
 _EXCLUDED_SUBDIRS: set[str] = {
     "__pycache__",
     ".git",
+    ".eggs",
     ".venv",
     "venv",
     "env",
@@ -53,9 +58,24 @@ class Adhoc(Manifest):
         spec = ManifestSpec(name="adhoc", version="", config=config)
         super().__init__(spec)
 
+    def _python_files(self) -> list[Path]:
+        cwd = self.spec.config.cwd or Path(".")
+        files_found: list[Path] = []
+        for root, dirs, files in os.walk(cwd):
+            dirs[:] = [
+                directory
+                for directory in dirs
+                if directory.lower() not in _EXCLUDED_SUBDIRS
+                and not directory.lower().endswith((".egg-info", ".egg"))
+            ]
+            for file in files:
+                if file.endswith(".py") and file != "setup.py":
+                    files_found.append(Path(root) / file)
+        return files_found
+
     @override
     def detect(self) -> bool:
-        return True
+        return bool(self._python_files())
 
     @staticmethod
     def imported_modules(code: str) -> set[str]:
@@ -71,11 +91,11 @@ class Adhoc(Manifest):
                 clause = stripped[len("import ") :]
                 for part in clause.split(","):
                     name = part.strip().split(" ")[0]
-                    if name:
+                    if _MODULE_NAME.fullmatch(name):
                         modules.add(name)
             elif stripped.startswith("from "):
                 module = stripped[len("from ") :].split(" import ", 1)[0].strip()
-                if module and not module.startswith("."):
+                if _MODULE_NAME.fullmatch(module):
                     modules.add(module)
         return modules
 
@@ -101,26 +121,30 @@ class Adhoc(Manifest):
             return installed[top][0]
         return top
 
+    def _declared_manifest_present(self) -> bool:
+        cwd = self.spec.config.cwd or Path(".")
+        return any(
+            (cwd / name).is_file()
+            for name in ("setup.py", "setup.cfg", "requirements.txt")
+        )
+
     @override
     def extract_dependencies(self) -> set[Dependency] | None:
+        # A declared manifest is the dependency list. Scanning every import
+        # also picks up prose, optional imports, and files egg_info unpacked.
+        if self._declared_manifest_present():
+            return None
         dependencies: set[Dependency] = set()
-        cwd = self.spec.config.cwd or Path(".")
-
-        for root, dirs, files in os.walk(cwd):
-            dirs[:] = [d for d in dirs if d.lower() not in _EXCLUDED_SUBDIRS]
-            for file in files:
-                if not file.endswith(".py"):
+        for file_path in self._python_files():
+            try:
+                code = file_path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            for module in self.imported_modules(code):
+                package = self.resolve_package(module)
+                if not package or install_spec(package, "") is None:
                     continue
-                file_path = Path(root) / file
-                try:
-                    code = file_path.read_text(encoding="utf-8", errors="ignore")
-                except OSError:
-                    continue
-                for module in self.imported_modules(code):
-                    package = self.resolve_package(module)
-                    if not package or install_spec(package, "") is None:
-                        continue
-                    dependencies.add(Dependency(name=package, version=""))
+                dependencies.add(Dependency(name=package, version=""))
 
         return dependencies or None
 

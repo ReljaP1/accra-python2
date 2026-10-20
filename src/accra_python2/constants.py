@@ -3,8 +3,9 @@
 PYTHON2_VERSION = "2.7"
 PYTHON27_IMAGE = "python:2.7"
 PYENV_VERSIONS = ("2.7.18", "2.7")
-# Last virtualenv that can still create a CPython 2.7 environment.
-VIRTUALENV_SPEC = "virtualenv==20.21.1"
+# Newest virtualenv that Python 2.7 can install and run itself.
+# Later releases declare Python >=3.6. The Dockerfile records this command.
+PYTHON2_VIRTUALENV_SPEC = "virtualenv==20.15.1"
 VENV_DIR = ".venv"
 VENV_PIP = f"{VENV_DIR}/bin/pip"
 IGNORE_REQUIRES_PYTHON = "--ignore-requires-python"
@@ -15,9 +16,6 @@ BOOTSTRAP_SPECS = (
     "wheel<0.35",
 )
 
-# numpy.distutils reads these names and skips a library when the value is None.
-# Without that, a macOS build of the last Python 2.7 numpy selects Accelerate
-# and passes -faltivec, which current clang rejects.
 SOURCE_BUILD_ENV = {
     "ACCELERATE": "None",
     "ATLAS": "None",
@@ -33,6 +31,8 @@ LEGACY_PINS = {
     "scikit-learn": "scikit-learn<0.21",
     "sklearn": "scikit-learn<0.21",
     "matplotlib": "matplotlib<3",
+    "nltk": "nltk<3.5",
+    "pdfminer": "pdfminer<20191010",
 }
 
 # Import names that are part of the Python 2 standard library.
@@ -61,6 +61,7 @@ STDLIB_ALIASES = {
     "userlist",
     "userstring",
     "__builtin__",
+    "__main__",
     "exceptions",
     "_winreg",
     "repr",

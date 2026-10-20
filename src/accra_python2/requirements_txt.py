@@ -1,13 +1,11 @@
-import re
 from pathlib import Path
 
 from accra_language import AccraError, Config, Dependency, Manifest, ManifestSpec
+from packaging.requirements import InvalidRequirement, Requirement
 
 from .constants import PYTHON2_VERSION
+from .utils import fits_python2
 
-_REQUIREMENT = re.compile(
-    r"^(?P<name>[A-Za-z0-9][A-Za-z0-9_.-]*)(?P<rest>(?:\[[^\]]*\])?.*)$"
-)
 _SKIP_PREFIXES = ("-e", "--editable", "-c", "-f", "--")
 
 
@@ -27,13 +25,11 @@ class Requirements_txt(Manifest):
         return bool(path and path.is_file())
 
     @staticmethod
-    def _parse_requirements(
-        req_file_path: Path, visited_files: set[Path]
-    ) -> set[Dependency]:
-        dependencies: set[Dependency] = set()
+    def _requirement_lines(req_file_path: Path, visited_files: set[Path]) -> list[str]:
+        lines: list[str] = []
         req_file_path = req_file_path.resolve()
         if not req_file_path.is_file() or req_file_path in visited_files:
-            return dependencies
+            return lines
 
         visited_files.add(req_file_path)
         text = req_file_path.read_text(encoding="utf-8", errors="ignore")
@@ -45,32 +41,60 @@ class Requirements_txt(Manifest):
             if stripped.startswith(("-r ", "--requirement ")):
                 nested_file = stripped.split(maxsplit=1)[1].strip()
                 nested_path = (req_file_path.parent / nested_file).resolve()
-                dependencies.update(
-                    Requirements_txt._parse_requirements(nested_path, visited_files)
+                lines.extend(
+                    Requirements_txt._requirement_lines(nested_path, visited_files)
                 )
                 continue
 
             if stripped.startswith(_SKIP_PREFIXES):
                 continue
+            lines.append(stripped)
 
-            match = _REQUIREMENT.match(stripped)
-            if not match:
-                continue
-            name = match.group("name")
-            rest = match.group("rest").strip()
-            if name:
-                dependencies.add(Dependency(name=name, version=rest))
+        return lines
 
-        return dependencies
+    @staticmethod
+    def _dependency_for_python2(line: str) -> Dependency | None:
+        try:
+            requirement = Requirement(line)
+        except InvalidRequirement:
+            return None
+        if not fits_python2(requirement):
+            return None
+        extras = ""
+        if requirement.extras:
+            extras = "[" + ",".join(sorted(requirement.extras)) + "]"
+        return Dependency(
+            name=requirement.name,
+            version=f"{extras}{requirement.specifier}",
+        )
 
-    def extract_dependencies(self) -> set[Dependency] | None:
+    def _lines(self) -> list[str]:
         path = self._path()
         if path is None or not path.is_file():
-            return None
-        dependencies = Requirements_txt._parse_requirements(path, set())
+            return []
+        return self._requirement_lines(path, set())
+
+    def extract_dependencies(self) -> set[Dependency] | None:
+        dependencies = {
+            dependency
+            for line in self._lines()
+            if (dependency := self._dependency_for_python2(line)) is not None
+        }
         return dependencies or None
 
     def get_supported_language_versions(self) -> set[str] | AccraError:
-        # An unversioned requirements file must not wipe the intersection
-        # inside EnvironmentManager.select_language_version.
-        return {PYTHON2_VERSION}
+        lines = self._lines()
+        if not lines:
+            return {PYTHON2_VERSION}
+        parsed = False
+        for line in lines:
+            try:
+                requirement = Requirement(line)
+            except InvalidRequirement:
+                continue
+            parsed = True
+            if fits_python2(requirement):
+                return {PYTHON2_VERSION}
+        if not parsed:
+            return {PYTHON2_VERSION}
+        return set()

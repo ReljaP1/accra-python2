@@ -29,6 +29,32 @@ def test_setuppy():
         shutil.rmtree(tmp_dir)
 
 
+def test_setuppy_keeps_python2_marker_requirements(tmp_path: Path):
+    requires = tmp_path / "requires.txt"
+    requires.write_text(
+        'six\n\n[:python_version < "3.4"]\nsingledispatch\n\n[all]\nmatplotlib\n',
+        encoding="utf-8",
+    )
+    dependencies = Setup_py._dependencies_from_requires(requires)
+    assert dependencies == {
+        Dependency(name="six", version=""),
+        Dependency(name="singledispatch", version=""),
+    }
+
+
+def test_setuppy_reads_a_one_line_install_requires(tmp_path: Path):
+    setup_py = tmp_path / "setup.py"
+    setup_py.write_text(
+        "from setuptools import setup\n"
+        "setup(name='sample', install_requires=['six==1.16.0'])\n",
+        encoding="utf-8",
+    )
+    manifest = Setup_py(Config(cwd=tmp_path))
+    assert manifest.extract_dependencies() == {
+        Dependency(name="six", version="==1.16.0"),
+    }
+
+
 def test_setuppy_rejects_python3_only(tmp_path: Path):
     setup_py = tmp_path / "setup.py"
     setup_py.write_text(
