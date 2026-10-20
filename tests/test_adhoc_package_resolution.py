@@ -94,13 +94,69 @@ def _python27_available() -> bool:
     not _python27_available(),
     reason="no python2.7, pyenv, or Docker",
 )
+def _remove_project(path: Path) -> None:
+    shutil.rmtree(path, ignore_errors=True)
+    if not path.exists() or not _command_ok(["docker", "info"]):
+        return
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{path.parent.resolve()}:/cleanup",
+            "-w",
+            "/cleanup",
+            PYTHON27_IMAGE,
+            "rm",
+            "-rf",
+            path.name,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _import_six(project: Path) -> subprocess.CompletedProcess[str]:
+    interpreter = project / ".venv" / "bin" / "python"
+    imported = subprocess.run(
+        [str(interpreter), "-c", "import six"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    # A venv built inside python:2.7 is linked to that image's libpython.
+    # The host can run it only when the same library is installed locally.
+    if imported.returncode == 0 or "libpython2.7" not in imported.stderr:
+        return imported
+    return subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{project.resolve()}:/project",
+            "-w",
+            "/project",
+            PYTHON27_IMAGE,
+            ".venv/bin/python",
+            "-c",
+            "import six",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_real_python27_installs_six():
     project_dir = Path(__file__).resolve().parent / Path(
         "fixtures/adhoc-module-project"
     )
     tmp_dir = Path("/tmp/adhoc-module-project-py2-real")
 
-    shutil.rmtree(tmp_dir, ignore_errors=True)
+    _remove_project(tmp_dir)
     shutil.copytree(project_dir, tmp_dir)
 
     try:
@@ -108,15 +164,10 @@ def test_real_python27_installs_six():
         assert result.success, [error.message for error in result.errors]
         interpreter = tmp_dir / ".venv" / "bin" / "python"
         assert interpreter.is_file()
-        imported = subprocess.run(
-            [str(interpreter), "-c", "import six"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        imported = _import_six(tmp_dir)
         assert imported.returncode == 0, imported.stderr
     finally:
-        shutil.rmtree(tmp_dir)
+        _remove_project(tmp_dir)
 
 
 def test_docker_builds_when_the_host_has_no_python27(monkeypatch, tmp_path: Path):
