@@ -1,0 +1,638 @@
+[
+  {
+    "name": "networkx",
+    "article": "Hagberg, Schult, and Swart, Exploring Network Structure, Dynamics, and Function using NetworkX, SciPy 2008",
+    "repository": "https://github.com/networkx/networkx",
+    "revision": "networkx-2.2",
+    "projects": [
+      "."
+    ],
+    "source": "networkx/readwrite/gpickle.py",
+    "syntax": "import cPickle as pickle",
+    "statement": "import networkx; print(getattr(networkx, '__version__', 'ok'))"
+  },
+  {
+    "name": "patsy",
+    "article": "Smith et al., patsy: describing statistical models in Python",
+    "repository": "https://github.com/pydata/patsy",
+    "revision": "v0.5.1",
+    "projects": [
+      "."
+    ],
+    "source": "doc/conf.py",
+    "syntax": "print \"python exec:\", sys.executable",
+    "statement": "import patsy; print(getattr(patsy, '__version__', 'ok'))"
+  },
+  {
+    "name": "nltk",
+    "article": "Loper and Bird, NLTK: The Natural Language Toolkit, ACL 2004",
+    "repository": "https://github.com/nltk/nltk",
+    "revision": "3.4.5",
+    "projects": [
+      "."
+    ],
+    "source": "nltk/data.py",
+    "syntax": "import cPickle as pickle",
+    "statement": "import nltk; print(getattr(nltk, '__version__', 'ok'))"
+  },
+  {
+    "name": "gensim",
+    "article": "Rehurek and Sojka, Software Framework for Topic Modelling with Large Corpora, LREC 2010",
+    "repository": "https://github.com/piskvorky/gensim",
+    "revision": "3.8.3",
+    "projects": [
+      "."
+    ],
+    "source": "gensim/downloader.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import gensim; print(getattr(gensim, '__version__', 'ok'))"
+  },
+  {
+    "name": "pattern",
+    "article": "De Smedt and Daelemans, Pattern for Python, Journal of Machine Learning Research 2012",
+    "repository": "https://github.com/clips/pattern",
+    "revision": "af75468",
+    "projects": [
+      "."
+    ],
+    "source": "pattern/web/__init__.py",
+    "syntax": "from urllib2 import urlopen, Request, HTTPHandler, HTTPRedirectHandler, ProxyHandler, HTTPCookieProcessor, install_opener, build_opener",
+    "statement": "import pattern; print(getattr(pattern, '__version__', 'ok'))"
+  },
+  {
+    "name": "sympy",
+    "article": "Meurer et al., SymPy: symbolic computing in Python, PeerJ Computer Science 2017",
+    "repository": "https://github.com/sympy/sympy",
+    "revision": "sympy-1.4",
+    "projects": [
+      "."
+    ],
+    "source": "sympy/codegen/ast.py",
+    "syntax": "print *, val",
+    "statement": "import sympy; print(getattr(sympy, '__version__', 'ok'))"
+  },
+  {
+    "name": "mpmath",
+    "article": "Johansson, mpmath: a Python library for arbitrary-precision floating-point arithmetic",
+    "repository": "https://github.com/fredrik-johansson/mpmath",
+    "revision": "1.1.0",
+    "projects": [
+      "."
+    ],
+    "source": "demo/mandelbrot.py",
+    "syntax": "for i in xrange(ITERATIONS):",
+    "statement": "import mpmath; print(getattr(mpmath, '__version__', 'ok'))"
+  },
+  {
+    "name": "uncertainties",
+    "article": "Lebigot, Uncertainties: a Python package for calculations with uncertainties",
+    "repository": "https://github.com/lebigot/uncertainties",
+    "revision": "3.1.2",
+    "projects": [
+      "."
+    ],
+    "source": "uncertainties/unumpy/core.py",
+    "syntax": "[{} for _ in xrange(func_nominal_value.size)], dtype=object)",
+    "statement": "import uncertainties; print(getattr(uncertainties, '__version__', 'ok'))"
+  },
+  {
+    "name": "pint",
+    "article": "Grecco, Pint: makes units easy",
+    "repository": "https://github.com/hgrecco/pint",
+    "revision": "0.9",
+    "projects": [
+      "."
+    ],
+    "source": "bench/bench.py",
+    "syntax": "elif isinstance(filenames, basestring):",
+    "statement": "import pint; print(getattr(pint, '__version__', 'ok'))"
+  },
+  {
+    "name": "periodictable",
+    "article": "Kienzle, Periodictable: a Python library for chemical and physical data",
+    "repository": "https://github.com/pkienzle/periodictable",
+    "revision": "v1.5.2",
+    "projects": [
+      "."
+    ],
+    "source": "test/test_xsf.py",
+    "syntax": "print \"sld for %s(%g g/cm**3)  rho=%.4g mu=%.4g\"\\",
+    "statement": "import periodictable; print(getattr(periodictable, '__version__', 'ok'))"
+  },
+  {
+    "name": "hyperopt",
+    "article": "Bergstra, Yamins, and Cox, Making a Science of Model Search, ICML 2013",
+    "repository": "https://github.com/hyperopt/hyperopt",
+    "revision": "0.1.2",
+    "projects": [
+      "."
+    ],
+    "source": "distribute_setup.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import hyperopt; print(getattr(hyperopt, '__version__', 'ok'))"
+  },
+  {
+    "name": "emcee",
+    "article": "Foreman-Mackey et al., emcee: The MCMC Hammer, Publications of the Astronomical Society of the Pacific 2013",
+    "repository": "https://github.com/dfm/emcee",
+    "revision": "v2.2.1",
+    "projects": [
+      "."
+    ],
+    "source": "examples/ipython_parallel.py",
+    "syntax": "p0 = [np.random.rand(ndim) for i in xrange(nwalkers)]",
+    "statement": "import emcee; print(getattr(emcee, '__version__', 'ok'))"
+  },
+  {
+    "name": "seaborn",
+    "article": "Waskom, seaborn: statistical data visualization, Journal of Open Source Software 2021",
+    "repository": "https://github.com/mwaskom/seaborn",
+    "revision": "v0.9.1",
+    "projects": [
+      "."
+    ],
+    "source": "seaborn/miscplot.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import seaborn; print(getattr(seaborn, '__version__', 'ok'))"
+  },
+  {
+    "name": "sunpy",
+    "article": "The SunPy Community, SunPy — Python for solar physics, Computational Science & Discovery 2015",
+    "repository": "https://github.com/sunpy/sunpy",
+    "revision": "v0.9.0",
+    "projects": [
+      "."
+    ],
+    "source": "ez_setup.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import sunpy; print(getattr(sunpy, '__version__', 'ok'))"
+  },
+  {
+    "name": "dendropy",
+    "article": "Sukumaran and Holder, DendroPy: a Python library for phylogenetic computing, Bioinformatics 2010",
+    "repository": "https://github.com/jeetsukumaran/DendroPy",
+    "revision": "v4.4.0",
+    "projects": [
+      "."
+    ],
+    "source": "src/dendropy/utility/urlio.py",
+    "syntax": "from urllib2 import Request",
+    "statement": "import dendropy; print(getattr(dendropy, '__version__', 'ok'))"
+  },
+  {
+    "name": "pyfaidx",
+    "article": "Shirley et al., Efficient random access to FASTA with pyfaidx, PeerJ PrePrints 2015",
+    "repository": "https://github.com/mdshw5/pyfaidx",
+    "revision": "v0.5.5.2",
+    "projects": [
+      "."
+    ],
+    "source": "pyfaidx/cli.py",
+    "syntax": "return sorted(self.iteritems(), key=itemgetter(1), reverse=True)",
+    "statement": "import pyfaidx; print(getattr(pyfaidx, '__version__', 'ok'))"
+  },
+  {
+    "name": "lifelines",
+    "article": "Davidson-Pilon, lifelines: survival analysis in Python, Journal of Open Source Software 2019",
+    "repository": "https://github.com/CamDavidsonPilon/lifelines",
+    "revision": "v0.14.6",
+    "projects": [
+      "."
+    ],
+    "source": "lifelines/fitters/aalen_additive_fitter.py",
+    "syntax": "non_censorsed_times = list(T[C].iteritems())",
+    "statement": "import lifelines; print(getattr(lifelines, '__version__', 'ok'))"
+  },
+  {
+    "name": "mlxtend",
+    "article": "Raschka, MLxtend: Providing machine learning and data science utilities and extensions, Journal of Open Source Software 2018",
+    "repository": "https://github.com/rasbt/mlxtend",
+    "revision": "0.13.0",
+    "projects": [
+      "."
+    ],
+    "source": "mlxtend/externals/six.py",
+    "syntax": "string_types = basestring,",
+    "statement": "import mlxtend; print(getattr(mlxtend, '__version__', 'ok'))"
+  },
+  {
+    "name": "imblearn",
+    "article": "Lemaitre, Nogueira, and Aridas, Imbalanced-learn: A Python Toolbox to Tackle the Curse of Imbalanced Datasets in Machine Learning, Journal of Machine Learning Research 2017",
+    "repository": "https://github.com/scikit-learn-contrib/imbalanced-learn",
+    "revision": "0.4.3",
+    "projects": [
+      "."
+    ],
+    "source": "imblearn/datasets/_zenodo.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import imblearn; print(getattr(imblearn, '__version__', 'ok'))"
+  },
+  {
+    "name": "nolearn",
+    "article": "Nouri et al., nolearn: scikit-learn compatible neural network utilities",
+    "repository": "https://github.com/dnouri/nolearn",
+    "revision": "0.6.0",
+    "projects": [
+      "."
+    ],
+    "source": "nolearn/_compat.py",
+    "syntax": "import cPickle as pickle",
+    "statement": "import nolearn; print(getattr(nolearn, '__version__', 'ok'))"
+  },
+  {
+    "name": "spearmint",
+    "article": "Snoek, Larochelle, and Adams, Practical Bayesian Optimization of Machine Learning Algorithms, NeurIPS 2012",
+    "repository": "https://github.com/HIPS/Spearmint",
+    "revision": "master",
+    "projects": [
+      "."
+    ],
+    "source": "spearmint/choosers/acquisition_functions.py",
+    "syntax": "import cPickle",
+    "statement": "import spearmint; print(getattr(spearmint, '__version__', 'ok'))"
+  },
+  {
+    "name": "nistats",
+    "article": "Abraham et al., Machine learning for neuroimaging with scikit-learn, Frontiers in Neuroinformatics 2014",
+    "repository": "https://github.com/nilearn/nistats",
+    "revision": "0.0.1b",
+    "projects": [
+      "."
+    ],
+    "source": "doc/sphinxext/sphinx_gallery/docs_resolv.py",
+    "syntax": "import urllib2 as urllib_request",
+    "statement": "import nistats; print(getattr(nistats, '__version__', 'ok'))"
+  },
+  {
+    "name": "nibabel",
+    "article": "Brett et al., NiBabel: neuroimaging file format access",
+    "repository": "https://github.com/nipy/nibabel",
+    "revision": "2.5.1",
+    "projects": [
+      "."
+    ],
+    "source": "nibabel/freesurfer/io.py",
+    "syntax": "for i in xrange(n_entries):",
+    "statement": "import nibabel; print(getattr(nibabel, '__version__', 'ok'))"
+  },
+  {
+    "name": "nitime",
+    "article": "Rokem, Trumpis, and Perez, NiTime: time-series analysis for neuroscience data",
+    "repository": "https://github.com/nipy/nitime",
+    "revision": "rel/0.7",
+    "projects": [
+      "."
+    ],
+    "source": "tools/gitwash_dumper.py",
+    "syntax": "print '\\n'.join(fnames)",
+    "statement": "import nitime; print(getattr(nitime, '__version__', 'ok'))"
+  },
+  {
+    "name": "tsfresh",
+    "article": "Christ et al., Time Series FeatuRe Extraction on basis of Scalable Hypothesis tests (tsfresh), Neurocomputing 2018",
+    "repository": "https://github.com/blue-yonder/tsfresh",
+    "revision": "v0.11.2",
+    "projects": [
+      "."
+    ],
+    "source": "tsfresh/convenience/relevant_extraction.py",
+    "syntax": ":type profiling_sorting: basestring",
+    "statement": "import tsfresh; print(getattr(tsfresh, '__version__', 'ok'))"
+  },
+  {
+    "name": "pysal",
+    "article": "Rey and Anselin, PySAL: A Python Library of Spatial Analytical Methods, The Review of Regional Studies 2007",
+    "repository": "https://github.com/pysal/pysal",
+    "revision": "v1.14.4",
+    "projects": [
+      "."
+    ],
+    "source": "distribute_setup.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import pysal; print(getattr(pysal, '__version__', 'ok'))"
+  },
+  {
+    "name": "theano",
+    "article": "The Theano Development Team, Theano: A Python framework for fast computation of mathematical expressions, arXiv:1605.02688",
+    "repository": "https://github.com/Theano/Theano",
+    "revision": "rel-1.0.5",
+    "projects": [
+      "."
+    ],
+    "source": "theano/gradient.py",
+    "syntax": "for i in xrange(len(rval)):",
+    "statement": "import theano; print(getattr(theano, '__version__', 'ok'))"
+  },
+  {
+    "name": "biopython",
+    "article": "Cock et al., Biopython: freely available Python tools for computational molecular biology and bioinformatics, Bioinformatics 2009",
+    "repository": "https://github.com/biopython/biopython",
+    "revision": "biopython-176",
+    "projects": [
+      "."
+    ],
+    "source": "Bio/_py3k/__init__.py",
+    "syntax": "from urllib2 import urlopen, Request",
+    "statement": "import Bio; print(getattr(Bio, '__version__', 'ok'))"
+  },
+  {
+    "name": "dipy",
+    "article": "Garyfallidis et al., Dipy, a library for the analysis of diffusion MRI data, Frontiers in Neuroinformatics 2014",
+    "repository": "https://github.com/dipy/dipy",
+    "revision": "0.16.0",
+    "projects": [
+      "."
+    ],
+    "source": "dipy/data/fetcher.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import dipy; print(getattr(dipy, '__version__', 'ok'))"
+  },
+  {
+    "name": "astropy",
+    "article": "The Astropy Collaboration, Astropy: A community Python package for astronomy, Astronomy & Astrophysics 2013",
+    "repository": "https://github.com/astropy/astropy",
+    "revision": "v2.0.16",
+    "projects": [
+      "."
+    ],
+    "source": "astropy/extern/ply/yacc.py",
+    "syntax": "import cPickle as pickle",
+    "statement": "import astropy; print(getattr(astropy, '__version__', 'ok'))"
+  },
+  {
+    "name": "nipy",
+    "article": "Millman and Brett, Analysis of functional magnetic resonance imaging in Python, Computing in Science & Engineering 2007",
+    "repository": "https://github.com/nipy/nipy",
+    "revision": "0.4.2",
+    "projects": [
+      "."
+    ],
+    "source": "examples/labs/need_data/get_data_light.py",
+    "syntax": "from urllib2 import urlopen # Python 2",
+    "statement": "import nipy; print(getattr(nipy, '__version__', 'ok'))"
+  },
+  {
+    "name": "galpy",
+    "article": "Bovy, galpy: A Python Library for Galactic Dynamics, The Astrophysical Journal Supplement Series 2015",
+    "repository": "https://github.com/jobovy/galpy",
+    "revision": "v1.3.0",
+    "projects": [
+      "."
+    ],
+    "source": "doc/source/examples/dierickx-edist.py",
+    "syntax": "import cPickle as pickle",
+    "statement": "import galpy; print(getattr(galpy, '__version__', 'ok'))"
+  },
+  {
+    "name": "lmfit",
+    "article": "Newville et al., LMFIT: Non-Linear Least-Square Minimization and Curve-Fitting for Python, Zenodo 2014",
+    "repository": "https://github.com/lmfit/lmfit-py",
+    "revision": "0.9.14",
+    "projects": [
+      "."
+    ],
+    "source": "versioneer.py",
+    "syntax": "import ConfigParser as configparser",
+    "statement": "import lmfit; print(getattr(lmfit, '__version__', 'ok'))"
+  },
+  {
+    "name": "astroml",
+    "article": "VanderPlas et al., Introduction to astroML: Machine learning for astrophysics, Conference on Intelligent Data Understanding 2012",
+    "repository": "https://github.com/astroML/astroML",
+    "revision": "v0.4.1",
+    "projects": [
+      "."
+    ],
+    "source": "astroML/py3k_compat.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import astroML; print(getattr(astroML, '__version__', 'ok'))"
+  },
+  {
+    "name": "pyvcf",
+    "article": "Casbon, PyVCF: a parser for Variant Call Format files",
+    "repository": "https://github.com/jamescasbon/PyVCF",
+    "revision": "v0.6.0",
+    "projects": [
+      "."
+    ],
+    "source": "vcf/test/prof.py",
+    "syntax": "print t/n",
+    "statement": "import vcf; print(getattr(vcf, '__version__', 'ok'))"
+  },
+  {
+    "name": "astroquery",
+    "article": "Ginsburg et al., astroquery: An Astronomical Web-querying Package in Python, The Astronomical Journal 2019",
+    "repository": "https://github.com/astropy/astroquery",
+    "revision": "v0.3.10",
+    "projects": [
+      "."
+    ],
+    "source": "astroquery/open_exoplanet_catalogue/oec_query.py",
+    "syntax": "import urllib2",
+    "statement": "import astroquery; print(getattr(astroquery, '__version__', 'ok'))"
+  },
+  {
+    "name": "eli5",
+    "article": "Korobov and Lopuhin, ELI5: debug machine learning classifiers and explain their predictions",
+    "repository": "https://github.com/TeamHG-Memex/eli5",
+    "revision": "0.8.2",
+    "projects": [
+      "."
+    ],
+    "source": "eli5/sklearn/_span_analyzers.py",
+    "syntax": "for n in xrange(min_n,",
+    "statement": "import eli5; print(getattr(eli5, '__version__', 'ok'))"
+  },
+  {
+    "name": "yellowbrick",
+    "article": "Bengfort and Bilbro, Yellowbrick: Visualizing the Scikit-Learn Model Selection Process, Journal of Open Source Software 2019",
+    "repository": "https://github.com/DistrictDataLabs/yellowbrick",
+    "revision": "v0.9",
+    "projects": [
+      "."
+    ],
+    "source": "yellowbrick/datasets/utils.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import yellowbrick; print(getattr(yellowbrick, '__version__', 'ok'))"
+  },
+  {
+    "name": "skopt",
+    "article": "Head et al., scikit-optimize: sequential model-based optimization in Python",
+    "repository": "https://github.com/scikit-optimize/scikit-optimize",
+    "revision": "v0.5.2",
+    "projects": [
+      "."
+    ],
+    "source": "benchmarks/bench_ml.py",
+    "syntax": "from urllib2 import HTTPError",
+    "statement": "import skopt; print(getattr(skopt, '__version__', 'ok'))"
+  },
+  {
+    "name": "tpot",
+    "article": "Olson et al., Evaluation of a Tree-based Pipeline Optimization Tool for Automating Data Science, GECCO 2016",
+    "repository": "https://github.com/EpistasisLab/tpot",
+    "revision": "v0.10.2",
+    "projects": [
+      "."
+    ],
+    "source": "tests/driver_tests.py",
+    "syntax": "print\n\n        self.assertEqual(_sort_lines(expected_output), _sort_lines(output))",
+    "statement": "import tpot; print(getattr(tpot, '__version__', 'ok'))"
+  },
+  {
+    "name": "pyfolio",
+    "article": "Quantopian, pyfolio: portfolio and risk analytics",
+    "repository": "https://github.com/quantopian/pyfolio",
+    "revision": "v0.8.0",
+    "projects": [
+      "."
+    ],
+    "source": "versioneer.py",
+    "syntax": "import ConfigParser as configparser",
+    "statement": "import pyfolio; print(getattr(pyfolio, '__version__', 'ok'))"
+  },
+  {
+    "name": "pyearth",
+    "article": "Friedman, Multivariate Adaptive Regression Splines, The Annals of Statistics 1991",
+    "repository": "https://github.com/jcrudy/py-earth",
+    "revision": "0.1.0",
+    "projects": [
+      "."
+    ],
+    "source": "benchmarks/pyearth_vs_earth.py",
+    "syntax": "print n, m, rep",
+    "statement": "import pyearth; print(getattr(pyearth, '__version__', 'ok'))"
+  },
+  {
+    "name": "matplotlib",
+    "article": "Hunter, Matplotlib: A 2D Graphics Environment, Computing in Science & Engineering 2007",
+    "repository": "https://github.com/matplotlib/matplotlib",
+    "revision": "v2.2.5",
+    "projects": [
+      "."
+    ],
+    "source": "setupext.py",
+    "syntax": "from urllib2 import urlopen, Request",
+    "statement": "import matplotlib; print(getattr(matplotlib, '__version__', 'ok'))"
+  },
+  {
+    "name": "jieba",
+    "article": "Sun, jieba: Chinese text segmentation",
+    "repository": "https://github.com/fxsjy/jieba",
+    "revision": "v0.42.1",
+    "projects": [
+      "."
+    ],
+    "source": "jieba/__init__.py",
+    "syntax": "for ch in xrange(len(word)):",
+    "statement": "import jieba; print(getattr(jieba, '__version__', 'ok'))"
+  },
+  {
+    "name": "textblob",
+    "article": "Loria, TextBlob: Simplified Text Processing",
+    "repository": "https://github.com/sloria/TextBlob",
+    "revision": "0.15.3",
+    "projects": [
+      "."
+    ],
+    "source": "textblob/compat.py",
+    "syntax": "import urllib2 as request",
+    "statement": "import textblob; print(getattr(textblob, '__version__', 'ok'))"
+  },
+  {
+    "name": "pubchempy",
+    "article": "Swain, PubChemPy: a way to interact with PubChem in Python",
+    "repository": "https://github.com/mcs07/PubChemPy",
+    "revision": "v1.0.4",
+    "projects": [
+      "."
+    ],
+    "source": "pubchempy.py",
+    "syntax": "from urllib2 import quote, urlopen, HTTPError",
+    "statement": "import pubchempy; print(getattr(pubchempy, '__version__', 'ok'))"
+  },
+  {
+    "name": "control",
+    "article": "The python-control developers, Python Control Systems Library",
+    "repository": "https://github.com/python-control/python-control",
+    "revision": "0.8.3",
+    "projects": [
+      "."
+    ],
+    "source": "external/yottalab.py",
+    "syntax": "print \"Warning: accuracy may be poor\"",
+    "statement": "import control; print(getattr(control, '__version__', 'ok'))"
+  },
+  {
+    "name": "metpy",
+    "article": "May et al., MetPy: A Meteorological Python Library for Data Analysis and Visualization, Bulletin of the American Meteorological Society 2022",
+    "repository": "https://github.com/Unidata/MetPy",
+    "revision": "v0.10.2",
+    "projects": [
+      "."
+    ],
+    "source": "metpy/cbook.py",
+    "syntax": "string_type = basestring",
+    "statement": "import metpy; print(getattr(metpy, '__version__', 'ok'))"
+  },
+  {
+    "name": "statsmodels",
+    "article": "Seabold and Perktold, Statsmodels: Econometric and Statistical Modeling with Python, SciPy 2010",
+    "repository": "https://github.com/statsmodels/statsmodels",
+    "revision": "v0.10.2",
+    "projects": [
+      "."
+    ],
+    "source": "tools/update_web.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import statsmodels; print(getattr(statsmodels, '__version__', 'ok'))"
+  },
+  {
+    "name": "pretty_midi",
+    "article": "Raffel and Ellis, Intuitive Analysis, Creation and Manipulation of MIDI Data with pretty_midi, ISMIR 2014",
+    "repository": "https://github.com/craffel/pretty-midi",
+    "revision": "0.2.8",
+    "projects": [
+      "."
+    ],
+    "source": "pretty_midi/__init__.py",
+    "syntax": "print midi_data.estimate_tempo()",
+    "statement": "import pretty_midi; print(getattr(pretty_midi, '__version__', 'ok'))"
+  },
+  {
+    "name": "langid",
+    "article": "Lui and Baldwin, langid.py: An Off-the-shelf Language Identification Tool, ACL 2012",
+    "repository": "https://github.com/saffsd/langid.py",
+    "revision": "master",
+    "projects": [
+      "."
+    ],
+    "source": "langid/langid.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import langid; print(getattr(langid, '__version__', 'ok'))"
+  },
+  {
+    "name": "numpy",
+    "article": "van der Walt, Colbert, and Varoquaux, The NumPy Array: A Structure for Efficient Numerical Computation, Computing in Science & Engineering 2011",
+    "repository": "https://github.com/numpy/numpy",
+    "revision": "v1.16.6",
+    "projects": [
+      "."
+    ],
+    "source": "numpy/lib/_datasource.py",
+    "syntax": "from urllib2 import urlopen",
+    "statement": "import numpy; print(getattr(numpy, '__version__', 'ok'))"
+  },
+  {
+    "name": "pandas",
+    "article": "McKinney, pandas: a Foundational Python Library for Data Analysis and Statistics, SciPy 2011",
+    "repository": "https://github.com/pandas-dev/pandas",
+    "revision": "v0.24.2",
+    "projects": [
+      "."
+    ],
+    "source": "pandas/io/common.py",
+    "syntax": "from urllib2 import urlopen as _urlopen",
+    "statement": "import pandas; print(getattr(pandas, '__version__', 'ok'))"
+  }
+]

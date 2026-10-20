@@ -33,6 +33,14 @@ LEGACY_PINS = {
     "matplotlib": "matplotlib<3",
     "nltk": "nltk<3.5",
     "pdfminer": "pdfminer<20191010",
+    "statsmodels": "statsmodels<0.11",
+    "biopython": "biopython<1.77",
+    "scikit-image": "scikit-image<0.15",
+    "cython": "cython<3",
+    "networkx": "networkx<2.3",
+    "sympy": "sympy<1.5",
+    "seaborn": "seaborn<0.10",
+    "joblib": "joblib<0.15",
 }
 
 # Import names that are part of the Python 2 standard library.

@@ -2,7 +2,7 @@ import re
 
 from packaging.markers import Marker, default_environment
 from packaging.requirements import Requirement
-from packaging.specifiers import SpecifierSet
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import Version
 
 from .constants import LEGACY_PINS, PYTHON2_VERSION, STDLIB_ALIASES
@@ -37,11 +37,17 @@ def python2_versions_for_requires(requires_python: str) -> set[str]:
     """Return {2.7} when a requires-python specifier allows CPython 2.7.
 
     An empty specifier does not exclude 2.7. A floor such as >=3.8 does.
+    A value that is not a specifier, such as an unformatted template, does not
+    exclude 2.7 either.
     """
     spec = requires_python.strip()
     if not spec:
         return {PYTHON2_VERSION}
-    if SpecifierSet(spec).contains(Version("2.7.18")):
+    try:
+        parsed = SpecifierSet(spec)
+    except InvalidSpecifier:
+        return {PYTHON2_VERSION}
+    if parsed.contains(Version("2.7.18")):
         return {PYTHON2_VERSION}
     return set()
 

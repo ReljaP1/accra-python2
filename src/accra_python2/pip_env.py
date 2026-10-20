@@ -264,10 +264,48 @@ class Pip(EnvironmentManager):
             )
         )
 
+    def _cython_sources(self, project: Path) -> bool:
+        return any(
+            path.suffix == ".pyx" and ".venv" not in path.parts
+            for path in project.rglob("*.pyx")
+        )
+
+    def _install_cython_for_extensions(self) -> AccraResult | None:
+        """Install the Python 2.7 Cython pin when the checkout has Cython sources."""
+        project = self._project_dir()
+        if project is None or not self._cython_sources(project):
+            return None
+        probe = self._run([f"{VENV_DIR}/bin/python", "-c", "import Cython"])
+        if probe.returncode == 0:
+            return None
+        spec = install_spec("cython", "")
+        if spec is None:
+            return None
+        args = [VENV_PIP, "install", spec, IGNORE_REQUIRES_PYTHON]
+        if self._using_docker:
+            installed = self._docker([args])
+            if not installed.success:
+                return installed
+        else:
+            installed = self._run(args)
+            if installed.returncode != 0:
+                return self._fail("could not install Cython", installed)
+        return AccraResult(
+            dockerfile=Dockerfile(
+                post_dependencies_installation=[_dockerfile_run(args)],
+            )
+        )
+
     def post_dependencies_installation(self) -> AccraResult:
         project = self._project_dir()
         if project is None or not (project / "setup.py").is_file():
             return AccraResult()
+        instructions: list[DockerfileInstruction] = []
+        cython = self._install_cython_for_extensions()
+        if isinstance(cython, AccraResult):
+            if not cython.success:
+                return cython
+            instructions.extend(cython.dockerfile.post_dependencies_installation)
         command = [f"{VENV_DIR}/bin/python", "setup.py", "build_ext", "--inplace"]
         if self._using_docker:
             built = self._docker([command])
@@ -277,8 +315,9 @@ class Pip(EnvironmentManager):
             compiled = self._run(command)
             if compiled.returncode != 0:
                 return self._fail("could not build project extensions", compiled)
+        instructions.append(_dockerfile_run(command))
         return AccraResult(
             dockerfile=Dockerfile(
-                post_dependencies_installation=[_dockerfile_run(command)],
+                post_dependencies_installation=instructions,
             )
         )

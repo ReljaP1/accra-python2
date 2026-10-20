@@ -65,6 +65,9 @@ def test_legacy_scientific_pin():
     assert install_spec("six", "") == "six"
     assert install_spec("nltk", "") == "nltk<3.5"
     assert install_spec("pdfminer", "") == "pdfminer<20191010"
+    assert install_spec("statsmodels", ">=0.8.0") == "statsmodels<0.11"
+    assert install_spec("biopython", ">=1.62") == "biopython<1.77"
+    assert install_spec("Cython", "") == "cython<3"
 
 
 def test_vermin_python2_detection():
@@ -120,3 +123,4 @@ def test_requires_python_keeps_only_27():
     assert python2_versions_for_requires("") == {PYTHON2_VERSION}
     assert python2_versions_for_requires(">=2.7") == {PYTHON2_VERSION}
     assert python2_versions_for_requires(">=3.8") == set()
+    assert python2_versions_for_requires(">={}") == {PYTHON2_VERSION}
