@@ -121,6 +121,18 @@ class Adhoc(Manifest):
             return installed[top][0]
         return top
 
+    def local_module_names(self) -> set[str]:
+        """The names the project's own files and directories import as: a
+        Python 2 script finds a module beside it, so `import loader` is the
+        project's `loader.py`, not a package to install."""
+        cwd = self.spec.config.cwd or Path(".")
+        names: set[str] = set()
+        for root, dirs, files in os.walk(cwd):
+            dirs[:] = [d for d in dirs if d not in {".git", ".venv", "site-packages"}]
+            names.update(d for d in dirs if _MODULE_NAME.fullmatch(d))
+            names.update(f[:-3] for f in files if f.endswith(".py") and f != "setup.py")
+        return names
+
     def _declared_manifest_present(self) -> bool:
         cwd = self.spec.config.cwd or Path(".")
         return any(
@@ -135,12 +147,15 @@ class Adhoc(Manifest):
         if self._declared_manifest_present():
             return None
         dependencies: set[Dependency] = set()
+        local = self.local_module_names()
         for file_path in self._python_files():
             try:
                 code = file_path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
             for module in self.imported_modules(code):
+                if module.split(".")[0] in local:
+                    continue
                 package = self.resolve_package(module)
                 if not package or install_spec(package, "") is None:
                     continue

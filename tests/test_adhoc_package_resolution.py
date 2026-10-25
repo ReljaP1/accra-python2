@@ -6,7 +6,12 @@ import pytest
 from accra_language import AccraResult, Config
 
 from accra_python2 import Pip, Python2
-from accra_python2.constants import PYTHON2_VIRTUALENV_SPEC, PYTHON27_IMAGE
+from accra_python2.adhoc import Adhoc
+from accra_python2.constants import (
+    DOCKER_PYTHON,
+    PYTHON2_VIRTUALENV_SPEC,
+    PYTHON27_IMAGE,
+)
 
 _BOOTSTRAP = (
     "RUN .venv/bin/pip install 'pip<21' 'setuptools<45' 'wheel<0.35' "
@@ -38,11 +43,15 @@ def test_adhoc_package_resolution(monkeypatch):
 
         result: AccraResult = python2.build()
         assert result.success
-        assert result.dockerfile.pre_dependencies_installation == [
-            f"FROM {PYTHON27_IMAGE}",
-            f"RUN python -m pip install {PYTHON2_VIRTUALENV_SPEC}",
-            "RUN python -m virtualenv .venv",
+        pre = result.dockerfile.pre_dependencies_installation
+        assert pre[0].startswith("RUN apt-get update && apt-get install -y ")
+        assert "pyenv install --skip-existing 2.7.18" in pre[3]
+        assert pre[4:] == [
+            f"RUN {DOCKER_PYTHON} -m pip install {PYTHON2_VIRTUALENV_SPEC}",
+            f"RUN {DOCKER_PYTHON} -m virtualenv .venv",
             _BOOTSTRAP,
+            "ENV VIRTUAL_ENV=/project/.venv",
+            'ENV PATH="/project/.venv/bin:$PATH"',
         ]
         assert result.dockerfile.dependencies_installation == [
             "RUN .venv/bin/pip install six"
@@ -186,7 +195,19 @@ def test_docker_builds_when_the_host_has_no_python27(monkeypatch, tmp_path: Path
 
     result = Python2(Config(cwd=tmp_path)).build()
     assert result.success, [error.message for error in result.errors]
-    assert (
-        result.dockerfile.pre_dependencies_installation[0] == f"FROM {PYTHON27_IMAGE}"
-    )
+    assert result.dockerfile.pre_dependencies_installation[0].startswith("RUN apt-get")
     assert any(command[0] == "docker" and "run" in command for command in calls)
+
+
+def test_imports_of_the_projects_own_modules_are_not_dependencies(tmp_path):
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "_init_paths.py").write_text("import numpy\n")
+    (tmp_path / "loader.py").write_text("x = 1\n")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "main.py").write_text(
+        "import loader\nimport _init_paths\nfrom pkg import a\nimport requests\n"
+    )
+
+    dependencies = Adhoc(Config(cwd=tmp_path)).extract_dependencies()
+
+    assert {d.name for d in dependencies} == {"numpy", "requests"}

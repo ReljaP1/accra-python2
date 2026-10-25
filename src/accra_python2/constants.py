@@ -6,6 +6,25 @@ PYENV_VERSIONS = ("2.7.18", "2.7")
 # Newest virtualenv that Python 2.7 can install and run itself.
 # Later releases declare Python >=3.6. The Dockerfile records this command.
 PYTHON2_VIRTUALENV_SPEC = "virtualenv==20.15.1"
+# The image is composed on a bare Debian base, so its first steps build the
+# interpreter: OpenSSL 1.1.1 (Python 2.7.18's `ssl` cannot build against the
+# OpenSSL 3 of bookworm), pyenv, and 2.7.18 compiled with pyenv.
+DOCKER_BUILD_PACKAGES = (
+    "build-essential",
+    "perl",
+    "zlib1g-dev",
+    "libbz2-dev",
+    "libreadline-dev",
+    "libsqlite3-dev",
+    "libffi-dev",
+    "liblzma-dev",
+    "libncurses-dev",
+    "xz-utils",
+)
+OPENSSL_VERSION = "1.1.1w"
+OPENSSL_PREFIX = "/opt/openssl-1.1"
+PYENV_ROOT = "/opt/pyenv"
+DOCKER_PYTHON = f"{PYENV_ROOT}/versions/{PYENV_VERSIONS[0]}/bin/python"
 VENV_DIR = ".venv"
 VENV_PIP = f"{VENV_DIR}/bin/pip"
 IGNORE_REQUIRES_PYTHON = "--ignore-requires-python"

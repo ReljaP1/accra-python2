@@ -1,4 +1,6 @@
+import configparser
 import re
+from pathlib import Path
 
 from packaging.markers import Marker, default_environment
 from packaging.requirements import Requirement
@@ -113,3 +115,70 @@ def install_spec(name: str, version: str) -> str | None:
     if suffix[0] in "<>=!~[":
         return f"{cleaned}{suffix}"
     return f"{cleaned} {suffix}"
+
+
+# Not project modules or packages: build files, test and documentation folders.
+_NOT_PROJECT_MODULES = {"setup", "conftest"}
+_NOT_PROJECT_DIRS = {"tests", "test", "docs", "doc", "examples", "build", "dist"}
+_SETUP_NAME = re.compile(r"\bsetup\s*\(.*?\bname\s*=\s*['\"]([^'\"]+)['\"]", re.DOTALL)
+
+
+def import_roots(project: Path) -> list[str]:
+    """Directories, relative to the project, that are on PYTHONPATH when it runs
+    from source: the project itself, and `src` if there is one."""
+    return [".", "src"] if (project / "src").is_dir() else ["."]
+
+
+def local_top_level_names(project: Path) -> set[str]:
+    """Top-level modules and packages of the project, at its root and in `src/`,
+    as written. A folder that cannot be read counts as empty."""
+    names: set[str] = set()
+    for root in (project, project / "src"):
+        try:
+            entries = list(root.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.name.startswith("."):
+                continue
+            try:
+                if entry.is_file():
+                    if entry.suffix == ".py" and entry.stem not in _NOT_PROJECT_MODULES:
+                        names.add(entry.stem)
+                elif (
+                    entry.name not in _NOT_PROJECT_DIRS
+                    and (entry / "__init__.py").is_file()
+                ):
+                    names.add(entry.name)
+            except OSError:
+                continue
+    return names
+
+
+def distribution_name(project: Path) -> str | None:
+    """The `name` of `setup.cfg` (`[metadata]`) or `setup.py` (`setup(name=...)`,
+    a string literal), None when there is none or the file cannot be read."""
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        parser.read(project / "setup.cfg", encoding="utf-8")
+        name = parser.get("metadata", "name", fallback="").strip()
+        if name:
+            return name
+    except (OSError, UnicodeError, configparser.Error):
+        pass
+    try:
+        text = (project / "setup.py").read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return None
+    match = _SETUP_NAME.search(text)
+    return match.group(1).strip() if match else None
+
+
+def project_own_names(project: Path) -> set[str]:
+    """Names that refer to the project itself: its top-level modules and
+    packages and the name of its setup.py or setup.cfg."""
+    names = local_top_level_names(project)
+    distribution = distribution_name(project)
+    if distribution:
+        names.add(distribution)
+    return names

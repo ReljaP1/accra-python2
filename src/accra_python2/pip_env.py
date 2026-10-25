@@ -1,13 +1,18 @@
+import json
 import os
 import shlex
 import shutil
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 
 from accra_language import (
+    AccraBuildError,
     AccraError,
+    AccraFailedDependencyInstallError,
     AccraInstallError,
     AccraResult,
+    AccraRunError,
     Config,
     Dependency,
     Dockerfile,
@@ -19,8 +24,14 @@ from accra_language import (
 from .adhoc import Adhoc
 from .constants import (
     BOOTSTRAP_SPECS,
+    DOCKER_BUILD_PACKAGES,
+    DOCKER_PYTHON,
     IGNORE_REQUIRES_PYTHON,
+    OPENSSL_PREFIX,
+    OPENSSL_VERSION,
+    PYENV_ROOT,
     PYENV_VERSIONS,
+    PYTHON2_VERSION,
     PYTHON2_VIRTUALENV_SPEC,
     PYTHON27_IMAGE,
     SOURCE_BUILD_ENV,
@@ -30,9 +41,20 @@ from .constants import (
 from .requirements_txt import Requirements_txt
 from .setup_cfg import Setup_cfg
 from .setup_py import Setup_py
-from .utils import install_spec
+from .utils import (
+    import_roots,
+    install_spec,
+    local_top_level_names,
+    project_own_names,
+)
 
 _SHELL_META = set(" <>|&;$'`\\*?()[]{}")
+
+
+def python2_version_order(versions: set[str]) -> list[str]:
+    """Python 2.7, the only version of this plugin, first; the rest, newest first."""
+    rest = sorted(versions - {PYTHON2_VERSION}, reverse=True)
+    return [PYTHON2_VERSION, *rest] if PYTHON2_VERSION in versions else rest
 
 
 def host_python27() -> str | None:
@@ -77,6 +99,7 @@ class Pip(EnvironmentManager):
                 Setup_py(config),
             },
             config=config,
+            version_order=python2_version_order,
         )
         super().__init__(spec)
         self._using_docker = False
@@ -88,7 +111,12 @@ class Pip(EnvironmentManager):
             base.setdefault(name, value)
         return base
 
-    def _run(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+    def _run(
+        self,
+        args: list[str],
+        env: dict[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         config = self.spec.config
         try:
             return subprocess.run(
@@ -97,9 +125,9 @@ class Pip(EnvironmentManager):
                 capture_output=True,
                 text=True,
                 cwd=config.cwd,
-                env=self._command_env(),
+                env=self._command_env() if env is None else env,
                 shell=config.shell,
-                timeout=config.timeout,
+                timeout=config.timeout if timeout is None else timeout,
             )
         except FileNotFoundError:
             return subprocess.CompletedProcess(
@@ -190,10 +218,46 @@ class Pip(EnvironmentManager):
             return self._fail("docker could not run Python 2.7", completed)
         return AccraResult()
 
-    def _image_pre(self) -> list[DockerfileInstruction]:
+    def _image_toolchain(self) -> list[DockerfileInstruction]:
+        """Python 2.7.18 on the bare Debian base: build dependencies, OpenSSL 1.1.1
+        (the `ssl` module of 2.7.18 cannot build against OpenSSL 3), pyenv, and the
+        interpreter compiled with pyenv. Each step skips what is already there."""
+        openssl = f"openssl-{OPENSSL_VERSION}"
+        libssl = f"{OPENSSL_PREFIX}/lib/libssl.so.1.1"
+        flags = (
+            f"CPPFLAGS=-I{OPENSSL_PREFIX}/include "
+            f'LDFLAGS="-L{OPENSSL_PREFIX}/lib -Wl,-rpath,{OPENSSL_PREFIX}/lib" '
+            f"PYENV_ROOT={PYENV_ROOT} MAKE_OPTS=-j$(nproc)"
+        )
         return [
-            DockerfileInstruction(f"FROM {PYTHON27_IMAGE}"),
-            *[_dockerfile_run(command) for command in _environment_commands("python")],
+            DockerfileInstruction(
+                "RUN apt-get update && apt-get install -y "
+                + " ".join(DOCKER_BUILD_PACKAGES)
+            ),
+            DockerfileInstruction(
+                f"RUN [ -f {libssl} ] || (cd /tmp && curl -fsSL "
+                f"https://www.openssl.org/source/{openssl}.tar.gz | tar xz && "
+                f"cd {openssl} && ./config --prefix={OPENSSL_PREFIX} --libdir=lib "
+                "--openssldir=/usr/lib/ssl shared zlib && make -j$(nproc) && "
+                f"make install_sw && cd /tmp && rm -rf {openssl})"
+            ),
+            DockerfileInstruction(
+                f"RUN [ -d {PYENV_ROOT}/.git ] || git clone --depth 1 "
+                f"https://github.com/pyenv/pyenv.git {PYENV_ROOT}"
+            ),
+            DockerfileInstruction(
+                f"RUN {flags} {PYENV_ROOT}/bin/pyenv install --skip-existing "
+                f"{PYENV_VERSIONS[0]}"
+            ),
+        ]
+
+    def _image_pre(self) -> list[DockerfileInstruction]:
+        venv = f"{self.spec.config.image_workdir.rstrip('/')}/{VENV_DIR}"
+        return [
+            *self._image_toolchain(),
+            *[_dockerfile_run(c) for c in _environment_commands(DOCKER_PYTHON)],
+            DockerfileInstruction(f"ENV VIRTUAL_ENV={venv}"),
+            DockerfileInstruction(f'ENV PATH="{venv}/bin:$PATH"'),
         ]
 
     def _prepare_environment(self, python: str) -> AccraResult | None:
@@ -237,6 +301,20 @@ class Pip(EnvironmentManager):
         result.dockerfile.pre_dependencies_installation.extend(self._image_pre())
         return result
 
+    def _failed_dependency(
+        self, dependency: Dependency, message: str, detail: str = ""
+    ) -> AccraResult:
+        """One dependency that did not install; the build goes on with the rest."""
+        return AccraResult(
+            errors=[
+                AccraFailedDependencyInstallError(
+                    message=f"{message}: {detail}" if detail else message,
+                    dependency=dependency,
+                    environment_manager=self,
+                )
+            ]
+        )
+
     def _pip_install_args(self, spec: str) -> list[str]:
         return [VENV_PIP, "install", spec]
 
@@ -246,23 +324,53 @@ class Pip(EnvironmentManager):
             return AccraResult()
 
         args = self._pip_install_args(spec)
+        message = f"{self.spec.name} could not install dependency: {spec}"
         if self._using_docker:
             installed = self._docker([args])
             if not installed.success:
-                return installed
+                return self._failed_dependency(
+                    dependency, message, installed.errors[0].message
+                )
         else:
             install_result = self._run(args)
             if install_result.returncode != 0:
-                return self._fail(
-                    f"{self.spec.name} could not install dependency: {spec}",
-                    install_result,
-                )
+                failed = self._fail(message, install_result)
+                return self._failed_dependency(dependency, failed.errors[0].message)
 
         return AccraResult(
             dockerfile=Dockerfile(
                 dependencies_installation=[_dockerfile_run(args)],
             )
         )
+
+    def environment_path(self) -> Path | None:
+        project = self._project_dir()
+        return None if project is None else project / VENV_DIR
+
+    def run_environment(self, base_env: Mapping[str, str]) -> dict[str, str]:
+        """The venv activated, as `source .venv/bin/activate` does."""
+        env = dict(base_env)
+        path = self.environment_path()
+        if path is None:
+            return env
+        env["VIRTUAL_ENV"] = str(path)
+        env["PATH"] = str(path / "bin") + os.pathsep + env.get("PATH", "")
+        return env
+
+    def installed_dependencies(self) -> set[Dependency] | AccraError:
+        path = self.environment_path()
+        if path is None:
+            return AccraInstallError(message="the project directory is not set")
+        listed = self._run([str(path / "bin" / "pip"), "list", "--format=json"])
+        if listed.returncode != 0:
+            return AccraInstallError(message="pip could not list the packages")
+        try:
+            return {
+                Dependency(name=str(p["name"]), version=f"=={p['version']}")
+                for p in json.loads(listed.stdout or "[]")
+            }
+        except (ValueError, KeyError, TypeError) as exc:
+            return AccraInstallError(message=f"unreadable pip list output: {exc}")
 
     def _cython_sources(self, project: Path) -> bool:
         return any(
@@ -321,3 +429,128 @@ class Pip(EnvironmentManager):
                 post_dependencies_installation=instructions,
             )
         )
+
+    def project_names(self) -> set[str]:
+        """The project's own top-level modules and packages (at its root and in
+        `src/`) and the name of its setup.py or setup.cfg, as written."""
+        project = self._project_dir()
+        return set() if project is None else project_own_names(project)
+
+    def has_project_install(self) -> bool:
+        """A `setup.py` or `setup.cfg`."""
+        project = self._project_dir()
+        return project is not None and any(
+            (project / name).is_file() for name in ("setup.py", "setup.cfg")
+        )
+
+    def _source_mode_lines(self, project: Path) -> list[DockerfileInstruction]:
+        workdir = self.spec.config.image_workdir.rstrip("/")
+        roots = [
+            workdir if r == "." else f"{workdir}/{r}" for r in import_roots(project)
+        ]
+        return [DockerfileInstruction(f"ENV PYTHONPATH={':'.join(roots)}")]
+
+    def _source_path(self, project: Path, workdir: str | None = None) -> str:
+        base = str(project) if workdir is None else workdir.rstrip("/")
+        return os.pathsep.join(
+            base if r == "." else f"{base}/{r}" for r in import_roots(project)
+        )
+
+    def install_project(self) -> AccraResult:
+        """With a setup.py or setup.cfg, `pip install -e` of the project; without
+        one, or when the install fails, the project runs from source and the
+        Dockerfile puts its import roots on PYTHONPATH."""
+        project = self._project_dir()
+        if project is None:
+            return AccraResult(
+                errors=[AccraBuildError(message="the project directory is not set")],
+                success=False,
+            )
+        if not self.has_project_install():
+            return AccraResult(
+                dockerfile=Dockerfile(
+                    post_dependencies_installation=self._source_mode_lines(project)
+                )
+            )
+        args = [VENV_PIP, "install", "-e", "."]
+        try:
+            if self._using_docker:
+                installed = self._docker([args])
+                failure = None if installed.success else installed.errors[0].message
+            else:
+                completed = self._run(
+                    [VENV_PIP, "install", "-e", str(project)],
+                    timeout=self.subprocess_timeout(),
+                )
+                failure = None
+                if completed.returncode != 0:
+                    failed = self._fail("pip could not install the project", completed)
+                    failure = failed.errors[0].message
+        except (subprocess.SubprocessError, OSError) as exc:
+            failure = f"pip could not install the project: {exc}"
+        if failure is not None:
+            return AccraResult(
+                errors=[AccraBuildError(message=failure)],
+                success=False,
+            )
+        return AccraResult(
+            dockerfile=Dockerfile(
+                post_dependencies_installation=[_dockerfile_run(args)]
+            )
+        )
+
+    def is_usable(self, dependency: Dependency) -> bool | AccraError:
+        """Whether `import <name>` works with the environment's python, from the
+        project with its import roots on PYTHONPATH: the name, its underscore
+        form, and the spelling a project module has on disk. An error when the
+        check cannot run."""
+        project = self._project_dir()
+        path = self.environment_path()
+        if project is None or path is None:
+            return AccraRunError(message="the project directory is not set")
+        name = dependency.name.strip()
+        spellings = {name, name.replace("-", "_")}
+        for own in local_top_level_names(project):
+            if own.replace("-", "_").lower() == name.replace("-", "_").lower():
+                spellings.add(own)
+        candidates = sorted(c for c in spellings if c.isidentifier())
+        if not candidates:
+            return False
+        interpreter = path / "bin" / "python"
+        if not self._using_docker and not interpreter.is_file():
+            return AccraRunError(message=f"{interpreter} does not exist")
+        for candidate in candidates:
+            command = [str(interpreter), "-c", f"import {candidate}"]
+            try:
+                if self._using_docker:
+                    workdir = self.spec.config.image_workdir
+                    imported = self._docker(
+                        [
+                            [
+                                "env",
+                                f"PYTHONPATH={self._source_path(project, workdir)}",
+                                f"{VENV_DIR}/bin/python",
+                                "-c",
+                                f"import {candidate}",
+                            ]
+                        ]
+                    )
+                    ok = imported.success
+                else:
+                    env = self.run_environment(self._command_env())
+                    env["PYTHONPATH"] = os.pathsep.join(
+                        p
+                        for p in (self._source_path(project), env.get("PYTHONPATH"))
+                        if p
+                    )
+                    completed = self._run(
+                        command, env=env, timeout=self.subprocess_timeout()
+                    )
+                    ok = completed.returncode == 0
+            except (subprocess.SubprocessError, OSError) as exc:
+                return AccraRunError(
+                    message=f"cannot tell whether {name} imports: {exc}"
+                )
+            if ok:
+                return True
+        return False

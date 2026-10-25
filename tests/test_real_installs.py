@@ -126,19 +126,19 @@ def test_numpy_is_pinned_and_installed(tmp_path: Path):
     assert imported.returncode == 0, imported.stderr
 
 
-def test_failed_package_stops_before_the_next_one(tmp_path: Path):
+def test_failed_package_does_not_stop_the_next_one(tmp_path: Path):
     (tmp_path / "app.py").write_text(
         "import aaaa_missing_dist_zz\nimport six\n",
         encoding="utf-8",
     )
 
     result, interpreter = _build(tmp_path)
-    assert result.success is False
+    assert result.success is True
     assert any("aaaa_missing_dist_zz" in error.message for error in result.errors)
-    assert "six" not in _dockerfile_text(result)
+    assert "six" in _dockerfile_text(result)
     assert interpreter.is_file()
     imported = _imports(interpreter, "import six")
-    assert imported.returncode != 0
+    assert imported.returncode == 0, imported.stderr
 
 
 def test_docker_installs_six_inside_the_image(monkeypatch, tmp_path: Path):
