@@ -56,7 +56,9 @@ def test_adhoc_package_resolution(monkeypatch):
         assert result.dockerfile.dependencies_installation == [
             "RUN .venv/bin/pip install six"
         ]
-        assert result.dockerfile.post_dependencies_installation == []
+        assert result.dockerfile.post_dependencies_installation == [
+            "ENV PYTHONPATH=/project"
+        ]
     finally:
         shutil.rmtree(tmp_dir)
 

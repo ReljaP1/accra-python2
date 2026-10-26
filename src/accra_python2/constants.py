@@ -151,3 +151,9 @@ STDLIB_ALIASES = {
     "quicktime",
     "miniae",
 }
+
+# Names that are never the project's primary package: its tests, documentation
+# and examples.
+NOT_PRIMARY_NAMES = frozenset(
+    {"tests", "test", "docs", "doc", "documentation", "examples", "example"}
+)

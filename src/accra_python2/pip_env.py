@@ -12,7 +12,6 @@ from accra_language import (
     AccraFailedDependencyInstallError,
     AccraInstallError,
     AccraResult,
-    AccraRunError,
     Config,
     Dependency,
     Dockerfile,
@@ -27,6 +26,7 @@ from .constants import (
     DOCKER_BUILD_PACKAGES,
     DOCKER_PYTHON,
     IGNORE_REQUIRES_PYTHON,
+    NOT_PRIMARY_NAMES,
     OPENSSL_PREFIX,
     OPENSSL_VERSION,
     PYENV_ROOT,
@@ -404,9 +404,10 @@ class Pip(EnvironmentManager):
             )
         )
 
-    def post_dependencies_installation(self) -> AccraResult:
-        project = self._project_dir()
-        if project is None or not (project / "setup.py").is_file():
+    def _build_extensions(self, project: Path) -> AccraResult:
+        """The project's C extensions, built in place (Cython first when it has
+        `.pyx` sources); nothing without a `setup.py`."""
+        if not (project / "setup.py").is_file():
             return AccraResult()
         instructions: list[DockerfileInstruction] = []
         cython = self._install_cython_for_extensions()
@@ -430,18 +431,9 @@ class Pip(EnvironmentManager):
             )
         )
 
-    def project_names(self) -> set[str]:
-        """The project's own top-level modules and packages (at its root and in
-        `src/`) and the name of its setup.py or setup.cfg, as written."""
-        project = self._project_dir()
-        return set() if project is None else project_own_names(project)
-
-    def has_project_install(self) -> bool:
+    def _has_setup_file(self, project: Path) -> bool:
         """A `setup.py` or `setup.cfg`."""
-        project = self._project_dir()
-        return project is not None and any(
-            (project / name).is_file() for name in ("setup.py", "setup.cfg")
-        )
+        return any((project / name).is_file() for name in ("setup.py", "setup.cfg"))
 
     def _source_mode_lines(self, project: Path) -> list[DockerfileInstruction]:
         workdir = self.spec.config.image_workdir.rstrip("/")
@@ -456,17 +448,11 @@ class Pip(EnvironmentManager):
             base if r == "." else f"{base}/{r}" for r in import_roots(project)
         )
 
-    def install_project(self) -> AccraResult:
-        """With a setup.py or setup.cfg, `pip install -e` of the project; without
-        one, or when the install fails, the project runs from source and the
-        Dockerfile puts its import roots on PYTHONPATH."""
-        project = self._project_dir()
-        if project is None:
-            return AccraResult(
-                errors=[AccraBuildError(message="the project directory is not set")],
-                success=False,
-            )
-        if not self.has_project_install():
+    def _install_project(self, project: Path) -> AccraResult:
+        """With a `setup.py` or `setup.cfg`, `pip install -e` of the project;
+        without one the project runs from source and the Dockerfile puts its
+        import roots on PYTHONPATH."""
+        if not self._has_setup_file(project):
             return AccraResult(
                 dockerfile=Dockerfile(
                     post_dependencies_installation=self._source_mode_lines(project)
@@ -490,6 +476,9 @@ class Pip(EnvironmentManager):
             failure = f"pip could not install the project: {exc}"
         if failure is not None:
             return AccraResult(
+                dockerfile=Dockerfile(
+                    post_dependencies_installation=self._source_mode_lines(project)
+                ),
                 errors=[AccraBuildError(message=failure)],
                 success=False,
             )
@@ -499,58 +488,88 @@ class Pip(EnvironmentManager):
             )
         )
 
-    def is_usable(self, dependency: Dependency) -> bool | AccraError:
+    def _primary_packages(self, project: Path) -> list[str]:
+        """The project's top-level packages and modules, never its tests,
+        documentation or examples."""
+        return sorted(
+            name
+            for name in local_top_level_names(project)
+            if name.replace("-", "_").lower() not in NOT_PRIMARY_NAMES
+        )
+
+    def _imports(self, project: Path, name: str) -> bool | None:
         """Whether `import <name>` works with the environment's python, from the
-        project with its import roots on PYTHONPATH: the name, its underscore
-        form, and the spelling a project module has on disk. An error when the
-        check cannot run."""
-        project = self._project_dir()
+        project with its import roots on PYTHONPATH; None when the check cannot
+        run."""
         path = self.environment_path()
-        if project is None or path is None:
-            return AccraRunError(message="the project directory is not set")
-        name = dependency.name.strip()
-        spellings = {name, name.replace("-", "_")}
-        for own in local_top_level_names(project):
-            if own.replace("-", "_").lower() == name.replace("-", "_").lower():
-                spellings.add(own)
-        candidates = sorted(c for c in spellings if c.isidentifier())
-        if not candidates:
-            return False
+        if path is None:
+            return None
         interpreter = path / "bin" / "python"
         if not self._using_docker and not interpreter.is_file():
-            return AccraRunError(message=f"{interpreter} does not exist")
-        for candidate in candidates:
-            command = [str(interpreter), "-c", f"import {candidate}"]
-            try:
-                if self._using_docker:
-                    workdir = self.spec.config.image_workdir
-                    imported = self._docker(
+            return None
+        try:
+            if self._using_docker:
+                workdir = self.spec.config.image_workdir
+                imported = self._docker(
+                    [
                         [
-                            [
-                                "env",
-                                f"PYTHONPATH={self._source_path(project, workdir)}",
-                                f"{VENV_DIR}/bin/python",
-                                "-c",
-                                f"import {candidate}",
-                            ]
+                            "env",
+                            f"PYTHONPATH={self._source_path(project, workdir)}",
+                            f"{VENV_DIR}/bin/python",
+                            "-c",
+                            f"import {name}",
                         ]
-                    )
-                    ok = imported.success
-                else:
-                    env = self.run_environment(self._command_env())
-                    env["PYTHONPATH"] = os.pathsep.join(
-                        p
-                        for p in (self._source_path(project), env.get("PYTHONPATH"))
-                        if p
-                    )
-                    completed = self._run(
-                        command, env=env, timeout=self.subprocess_timeout()
-                    )
-                    ok = completed.returncode == 0
-            except (subprocess.SubprocessError, OSError) as exc:
-                return AccraRunError(
-                    message=f"cannot tell whether {name} imports: {exc}"
+                    ]
                 )
-            if ok:
-                return True
-        return False
+                return imported.success
+            env = self.run_environment(self._command_env())
+            env["PYTHONPATH"] = os.pathsep.join(
+                p for p in (self._source_path(project), env.get("PYTHONPATH")) if p
+            )
+            completed = self._run(
+                [str(interpreter), "-c", f"import {name}"],
+                env=env,
+                timeout=self.subprocess_timeout(),
+            )
+            return completed.returncode == 0
+        except (subprocess.SubprocessError, OSError):
+            return None
+
+    def post_dependencies_installation(self) -> AccraResult:
+        """Builds the project's extensions and installs it (`pip install -e`
+        with a `setup.py` or `setup.cfg`, else from source). Python 2 projects
+        run from their sources, so this never fails the build: when none of the
+        project's packages imports, it records why in the errors, and the
+        project counts as not initialised."""
+        project = self._project_dir()
+        if project is None:
+            return AccraResult(
+                errors=[AccraBuildError(message="the project directory is not set")]
+            )
+        lines: list[DockerfileInstruction] = []
+        problems: list[AccraError] = []
+        for step in (self._build_extensions(project), self._install_project(project)):
+            lines.extend(step.dockerfile.post_dependencies_installation)
+            problems.extend(step.errors)
+        result = AccraResult(
+            dockerfile=Dockerfile(post_dependencies_installation=lines)
+        )
+        # a project with no package of its own counts as usable, whatever failed
+        candidates = self._primary_packages(project)
+        if candidates and not any(
+            self._imports(project, name) is not False for name in candidates
+        ):
+            result.errors.extend(problems)
+            result.errors.append(
+                AccraBuildError(
+                    message="none of the project's packages imports: "
+                    + ", ".join(candidates)
+                )
+            )
+        return result
+
+    def project_names(self) -> set[str]:
+        """The project's own top-level modules and packages (at its root and in
+        `src/`) and the name of its setup.py or setup.cfg, as written."""
+        project = self._project_dir()
+        return set() if project is None else project_own_names(project)

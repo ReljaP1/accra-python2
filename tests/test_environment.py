@@ -3,8 +3,8 @@ from pathlib import Path
 
 from accra_language import (
     AccraBuildError,
+    AccraError,
     AccraFailedDependencyInstallError,
-    AccraRunError,
     Config,
     Dependency,
 )
@@ -115,79 +115,107 @@ def test_project_names_ignore_unreadable_files(tmp_path: Path):
     assert Pip(Config(cwd=tmp_path / "absent")).project_names() == set()
 
 
-def test_has_project_install_needs_setup_py_or_setup_cfg(tmp_path: Path):
-    pip = Pip(Config(cwd=tmp_path))
-    assert pip.has_project_install() is False
-
-    _write(tmp_path / "requirements.txt", "six\n")
-    assert pip.has_project_install() is False
-
-    _write(tmp_path / "setup.cfg")
-    assert pip.has_project_install() is True
-
-    (tmp_path / "setup.cfg").unlink()
-    _write(tmp_path / "setup.py")
-    assert pip.has_project_install() is True
-
-
 def _lines(result) -> list[str]:
     return [str(i) for i in result.dockerfile.post_dependencies_installation]
-
-
-def test_source_mode_install_puts_the_import_roots_on_pythonpath(tmp_path: Path):
-    _write(tmp_path / "loader.py")
-    pip = Pip(Config(cwd=tmp_path))
-
-    assert _lines(pip.install_project()) == ["ENV PYTHONPATH=/project"]
-
-    _write(tmp_path / "src" / "tool.py")
-    assert _lines(pip.install_project()) == ["ENV PYTHONPATH=/project:/project/src"]
-
-    pip = Pip(Config(cwd=tmp_path, image_workdir="/work/"))
-    assert _lines(pip.install_project()) == ["ENV PYTHONPATH=/work:/work/src"]
-
-
-def test_install_project_runs_an_editable_pip_install(tmp_path: Path, monkeypatch):
-    _write(tmp_path / "setup.py")
-    pip = Pip(Config(cwd=tmp_path))
-    calls = []
-
-    def run(args, env=None, timeout=None):
-        calls.append(args)
-        return subprocess.CompletedProcess(args, 0, "", "")
-
-    monkeypatch.setattr(pip, "_run", run)
-
-    result = pip.install_project()
-
-    assert calls == [[".venv/bin/pip", "install", "-e", str(tmp_path.resolve())]]
-    assert result.success is True
-    assert _lines(result) == ["RUN .venv/bin/pip install -e ."]
-
-
-def test_failed_project_install_is_a_failed_result(tmp_path: Path, monkeypatch):
-    _write(tmp_path / "setup.py")
-    pip = Pip(Config(cwd=tmp_path))
-    monkeypatch.setattr(
-        pip,
-        "_run",
-        lambda args, env=None, timeout=None: subprocess.CompletedProcess(
-            args, 1, "", "ERROR: boom"
-        ),
-    )
-
-    result = pip.install_project()
-
-    assert result.success is False
-    assert isinstance(result.errors[0], AccraBuildError)
-    assert "boom" in result.errors[0].message
 
 
 def _fake_interpreter(tmp_path: Path) -> Path:
     return _write(tmp_path / ".venv" / "bin" / "python")
 
 
-def test_is_usable_imports_with_the_project_on_pythonpath(tmp_path: Path, monkeypatch):
+def _runs(pip, monkeypatch, imports=True, pip_ok=True):
+    """Fakes every command: `pip install` succeeds or not, imports likewise."""
+    calls = []
+
+    def run(args, env=None, timeout=None):
+        calls.append(args)
+        ok = imports if args[-2:-1] == ["-c"] else pip_ok
+        return subprocess.CompletedProcess(args, 0 if ok else 1, "", "ERROR: boom")
+
+    monkeypatch.setattr(pip, "_run", run)
+    return calls
+
+
+def test_source_mode_puts_the_import_roots_on_pythonpath(tmp_path: Path):
+    _write(tmp_path / "loader.py")
+    pip = Pip(Config(cwd=tmp_path))
+
+    result = pip.post_dependencies_installation()
+    assert result.success and not result.errors
+    assert _lines(result) == ["ENV PYTHONPATH=/project"]
+
+    _write(tmp_path / "src" / "tool.py")
+    assert _lines(pip.post_dependencies_installation()) == [
+        "ENV PYTHONPATH=/project:/project/src"
+    ]
+
+    pip = Pip(Config(cwd=tmp_path, image_workdir="/work/"))
+    assert _lines(pip.post_dependencies_installation()) == [
+        "ENV PYTHONPATH=/work:/work/src"
+    ]
+
+
+def test_post_step_runs_an_editable_pip_install(tmp_path: Path, monkeypatch):
+    _write(tmp_path / "setup.py")
+    pip = Pip(Config(cwd=tmp_path))
+    calls = _runs(pip, monkeypatch)
+
+    result = pip.post_dependencies_installation()
+
+    assert calls == [
+        [".venv/bin/python", "setup.py", "build_ext", "--inplace"],
+        [".venv/bin/pip", "install", "-e", str(tmp_path.resolve())],
+    ]
+    assert result.success is True and not result.errors
+    assert _lines(result) == [
+        "RUN .venv/bin/python setup.py build_ext --inplace",
+        "RUN .venv/bin/pip install -e .",
+    ]
+
+
+def test_failed_install_without_a_package_is_not_an_error(tmp_path: Path, monkeypatch):
+    # nothing to import, so the project counts as usable in source mode
+    _write(tmp_path / "setup.py")
+    pip = Pip(Config(cwd=tmp_path))
+    _runs(pip, monkeypatch, pip_ok=False)
+
+    result = pip.post_dependencies_installation()
+
+    assert result.success is True and not result.errors
+    assert _lines(result) == ["ENV PYTHONPATH=/project"]
+
+
+def test_unusable_project_is_recorded_without_failing_the_build(
+    tmp_path: Path, monkeypatch
+):
+    _fake_interpreter(tmp_path)
+    _write(tmp_path / "setup.py")
+    _write(tmp_path / "loader.py")
+    pip = Pip(Config(cwd=tmp_path))
+    _runs(pip, monkeypatch, imports=False, pip_ok=False)
+
+    result = pip.post_dependencies_installation()
+
+    assert result.success is True
+    messages = [e.message for e in result.errors]
+    assert any("boom" in m for m in messages)
+    assert any("none of the project's packages imports: loader" in m for m in messages)
+    assert all(isinstance(e, AccraError) for e in result.errors)
+
+
+def test_project_usable_from_source_after_a_failed_install(tmp_path: Path, monkeypatch):
+    _fake_interpreter(tmp_path)
+    _write(tmp_path / "setup.py")
+    _write(tmp_path / "loader.py")
+    pip = Pip(Config(cwd=tmp_path))
+    _runs(pip, monkeypatch, imports=True, pip_ok=False)
+
+    result = pip.post_dependencies_installation()
+
+    assert result.success is True and not result.errors
+
+
+def test_import_check_puts_the_project_on_pythonpath(tmp_path: Path, monkeypatch):
     _fake_interpreter(tmp_path)
     _write(tmp_path / "src" / "tool.py")
     pip = Pip(Config(cwd=tmp_path, env={"PATH": "/usr/bin"}))
@@ -195,41 +223,24 @@ def test_is_usable_imports_with_the_project_on_pythonpath(tmp_path: Path, monkey
 
     def run(args, env=None, timeout=None):
         seen.append((args[-1], env["PYTHONPATH"], env["VIRTUAL_ENV"]))
-        ok = args[-1] == "import my_mod"
-        return subprocess.CompletedProcess(args, 0 if ok else 1, "", "")
+        return subprocess.CompletedProcess(args, 0, "", "")
 
     monkeypatch.setattr(pip, "_run", run)
 
-    assert pip.is_usable(Dependency(name="my-mod", version="")) is True
-    assert pip.is_usable(Dependency(name="other", version="")) is False
+    pip.post_dependencies_installation()
+
     root = str(tmp_path.resolve())
+    assert seen[0][0] == "import tool"
     assert seen[0][1] == f"{root}:{root}/src"
     assert seen[0][2] == str(tmp_path.resolve() / ".venv")
 
 
-def test_is_usable_tries_the_spelling_on_disk(tmp_path: Path, monkeypatch):
-    _fake_interpreter(tmp_path)
-    _write(tmp_path / "Loader.py")
+def test_import_check_that_cannot_run_is_not_an_error(tmp_path: Path, monkeypatch):
+    _write(tmp_path / "loader.py")
     pip = Pip(Config(cwd=tmp_path))
-    tried = []
 
-    def run(args, env=None, timeout=None):
-        tried.append(args[-1])
-        return subprocess.CompletedProcess(
-            args, int(args[-1] != "import Loader"), "", ""
-        )
-
-    monkeypatch.setattr(pip, "_run", run)
-
-    assert pip.is_usable(Dependency(name="loader", version="")) is True
-    assert "import Loader" in tried
-
-
-def test_is_usable_errors_when_the_check_cannot_run(tmp_path: Path, monkeypatch):
-    pip = Pip(Config(cwd=tmp_path))
-    dependency = Dependency(name="six", version="")
-
-    assert isinstance(pip.is_usable(dependency), AccraRunError)
+    # no interpreter to ask
+    assert not pip.post_dependencies_installation().errors
 
     _fake_interpreter(tmp_path)
 
@@ -238,4 +249,21 @@ def test_is_usable_errors_when_the_check_cannot_run(tmp_path: Path, monkeypatch)
 
     monkeypatch.setattr(pip, "_run", timed_out)
 
-    assert isinstance(pip.is_usable(dependency), AccraRunError)
+    assert not pip.post_dependencies_installation().errors
+
+
+def test_import_check_ignores_tests_and_docs(tmp_path: Path, monkeypatch):
+    _fake_interpreter(tmp_path)
+    _write(tmp_path / "docs" / "__init__.py")
+    pip = Pip(Config(cwd=tmp_path))
+    calls = _runs(pip, monkeypatch, imports=False)
+
+    assert not pip.post_dependencies_installation().errors
+    assert calls == []
+
+
+def test_missing_project_directory_is_recorded(tmp_path: Path):
+    result = Pip(Config()).post_dependencies_installation()
+
+    assert result.success is True
+    assert isinstance(result.errors[0], AccraBuildError)
