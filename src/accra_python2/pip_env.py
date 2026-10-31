@@ -38,6 +38,7 @@ from .constants import (
     VENV_DIR,
     VENV_PIP,
 )
+from .known_failures import KnownDependencyInstallError, classify
 from .requirements_txt import Requirements_txt
 from .setup_cfg import Setup_cfg
 from .setup_py import Setup_py
@@ -49,6 +50,9 @@ from .utils import (
 )
 
 _SHELL_META = set(" <>|&;$'`\\*?()[]{}")
+
+# How much of a failed install's output an error keeps.
+_STDERR_TAIL = 2000
 
 
 def python2_version_order(versions: set[str]) -> list[str]:
@@ -302,15 +306,31 @@ class Pip(EnvironmentManager):
         return result
 
     def _failed_dependency(
-        self, dependency: Dependency, message: str, detail: str = ""
+        self,
+        dependency: Dependency,
+        message: str,
+        detail: str = "",
+        output: str = "",
     ) -> AccraResult:
-        """One dependency that did not install; the build goes on with the rest."""
+        """One dependency that did not install; the build goes on with the rest.
+        A known native-build failure (`known_failures`) is reported as a
+        `KnownDependencyInstallError`, so a caller can tell it from an unknown one;
+        `output` is the failed install's own output."""
+        text = f"{message}: {detail}" if detail else message
+        found = classify(dependency.name, f"{text}\n{output}")
+        arguments = {
+            "message": text,
+            "dependency": dependency,
+            "environment_manager": self,
+            "stderr": output[-_STDERR_TAIL:] if output else None,
+        }
+        if found is None:
+            return AccraResult(errors=[AccraFailedDependencyInstallError(**arguments)])
+        kind, signature = found
         return AccraResult(
             errors=[
-                AccraFailedDependencyInstallError(
-                    message=f"{message}: {detail}" if detail else message,
-                    dependency=dependency,
-                    environment_manager=self,
+                KnownDependencyInstallError(
+                    known_failure=kind, signature=signature, **arguments
                 )
             ]
         )
@@ -335,7 +355,13 @@ class Pip(EnvironmentManager):
             install_result = self._run(args)
             if install_result.returncode != 0:
                 failed = self._fail(message, install_result)
-                return self._failed_dependency(dependency, failed.errors[0].message)
+                return self._failed_dependency(
+                    dependency,
+                    failed.errors[0].message,
+                    output=(install_result.stderr or "")
+                    + "\n"
+                    + (install_result.stdout or ""),
+                )
 
         return AccraResult(
             dockerfile=Dockerfile(
